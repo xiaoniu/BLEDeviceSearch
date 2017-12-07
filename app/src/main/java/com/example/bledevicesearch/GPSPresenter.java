@@ -43,12 +43,16 @@ public class GPSPresenter {
         }
     }
 
+    /**
+     * 监听定位服务开关
+     */
     class Receiver extends BroadcastReceiver {
 
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction().matches(GPS_ACTION)) {
                 if (mInterface != null) {
+                    //接口回调
                     mInterface.gpsSwitchState(gpsIsOpen(context));
                 }
             }
