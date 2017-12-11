@@ -1,5 +1,6 @@
 package com.example.bledevicesearch;
 
+import android.bluetooth.BluetoothDevice;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -47,5 +48,25 @@ public class DevicesAdapter extends RecyclerView.Adapter<DevicesAdapter.ViewHold
     @Override
     public int getItemCount() {
         return mDeviceList.size();
+    }
+
+    public void clear() {
+        mDeviceList.clear();
+    }
+
+    public void addDevice(Device device) {
+        if(!includeDevice(device)) {
+            mDeviceList.add(device);
+            notifyItemInserted(mDeviceList.size()-1);
+        }
+    }
+
+    private boolean includeDevice(Device device) {
+        for (Device d : mDeviceList) {
+            if (device.getAddress().equals(d.getAddress())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -16,6 +16,7 @@ import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
@@ -24,10 +25,13 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.method.HideReturnsTransformationMethod;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -50,10 +54,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private List<Device> mDeviceList = new ArrayList<>();
     private DevicesAdapter adapter;
 
+    BluetoothAdapter mBluetoothAdapter;
+
+    private boolean mScanning;
+
+    private Handler mHandler;
+    private static final long SCAN_PERIOD = 15000;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        mHandler = new Handler();
 
         RecyclerView recyclerView = findViewById(R.id.recycle_view);
 
@@ -62,6 +77,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         recyclerView.setLayoutManager(layoutManager);
         adapter = new DevicesAdapter(mDeviceList);
         recyclerView.setAdapter(adapter);
+        recyclerView.addItemDecoration(new DividerItemDecoration(this,DividerItemDecoration.VERTICAL));
 
         //当Android版本大于等于6.0时才会加载布局，注册广播接收器
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -72,7 +88,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             enableButton.setOnClickListener(this);
             moreButton.setOnClickListener(this);
         }
-        findViewById(R.id.scan_btn).setOnClickListener(this);
     }
 
     @Override
@@ -84,6 +99,62 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 layout.setVisibility(View.VISIBLE);
             }
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        adapter.clear();
+        scanLeDevice(false);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main, menu);
+        if (!mScanning) {
+            menu.findItem(R.id.action_stop).setVisible(false);
+            menu.findItem(R.id.action_scan).setVisible(true);
+        } else {
+            menu.findItem(R.id.action_stop).setVisible(true);
+            menu.findItem(R.id.action_scan).setVisible(false);
+        }
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // 处理动作按钮的点击事件
+        switch (item.getItemId()) {
+            case R.id.action_scan:
+                adapter.clear();
+                checkPermissions();
+                return true;
+            case R.id.action_stop:
+                scanLeDevice(false);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void scanLeDevice(final boolean enable) {
+        if (enable) {
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    mScanning = false;
+                    stopScan();
+                    invalidateOptionsMenu();
+                }
+            }, SCAN_PERIOD);
+
+            mScanning = true;
+            startScan();
+        } else {
+            mScanning = false;
+            stopScan();
+        }
+        invalidateOptionsMenu();
     }
 
     /**
@@ -103,9 +174,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.scan_btn:
-                checkPermissions();
-                break;
             case R.id.btn_location_enable:
                 //跳转到开启定位服务界面
                 Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
@@ -142,8 +210,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void checkPermissions() {
         //没加对设备是否支持BLE的判断是当前大部分手机都支持
-        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (!bluetoothAdapter.isEnabled()) {
+        if (!mBluetoothAdapter.isEnabled()) {
             Toast.makeText(this, "请先打开蓝牙", Toast.LENGTH_LONG).show();
             return;
         }
@@ -152,7 +219,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestLocationPermission();
         } else {
-            startScan();
+            scanLeDevice(true);
         }
     }
 
@@ -209,14 +276,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void startScan() {
         Log.d(TAG, "开始扫描");
-        BluetoothAdapter bleAdapter = BluetoothAdapter.getDefaultAdapter();
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-            bleAdapter.startLeScan(mLeScanCallback);
+            //4.4之前
+            mBluetoothAdapter.startLeScan(mLeScanCallback);
         } else {
-            bleAdapter.getBluetoothLeScanner().startScan(mScanCallback);
+            //4.4及之后
+            mBluetoothAdapter.getBluetoothLeScanner().startScan(mScanCallback);
         }
+    }
 
-
+    private void stopScan() {
+        Log.d(TAG, "结束扫描");
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            //4.4之前
+            mBluetoothAdapter.stopLeScan(mLeScanCallback);
+        } else {
+            //4.4及之后
+            mBluetoothAdapter.getBluetoothLeScanner().stopScan(mScanCallback);
+        }
     }
 
     /**
@@ -229,11 +306,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         public void onScanResult(int callbackType, ScanResult result) {
             super.onScanResult(callbackType, result);
             Log.d(TAG, "found device name : " + result.getDevice().getName() + " address : " + result.getDevice().getAddress());
-            Device device = new Device(result.getDevice().getName(), result.getDevice().getAddress());
-            if (!includeDevice(device)) {
-                mDeviceList.add(device);
-                adapter.notifyItemInserted(mDeviceList.size() - 1);
-            }
+            String name = result.getDevice().getName() == null ? "N/A": result.getDevice().getName();
+            Device device = new Device(name, result.getDevice().getAddress());
+            adapter.addDevice(device);
         }
 
         @Override
@@ -265,11 +340,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
             Log.d(TAG, "found device name : " + device.getName() + " address : " + device.getAddress());
-            Device de = new Device(device.getName(), device.getAddress());
-            if (!includeDevice(de)) {
-                mDeviceList.add(de);
-                adapter.notifyItemInserted(mDeviceList.size() - 1);
-            }
+            String name = device.getName().equals("null") ? "N/A": device.getName();
+            Device de = new Device(name, device.getAddress());
+            adapter.addDevice(de);
         }
     };
 }

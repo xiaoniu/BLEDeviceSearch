@@ -8,13 +8,17 @@
         android:id="@+id/tv_device_name"
         android:textSize="18sp"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:textColor="#212121"
+        android:text="BLE"/>
 
     <TextView
         android:id="@+id/tv_device_address"
         android:textSize="18sp"
-        android:layout_alignParentRight="true"
+        android:layout_below="@id/tv_device_name"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:text="00:A0:50:0A:0D:27"/>
 
 </RelativeLayout>

@@ -1,0 +1,14 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="jiajun.example.com.myfirstapp.MainActivity">
+    <!--搜索，作为动作按钮展示在ActionBar上-->
+    <item android:id="@+id/action_scan"
+        android:title="Scan"
+        app:showAsAction="ifRoom|withText" />
+    <!--设置，在溢出菜单展示-->
+    <item
+        android:id="@+id/action_stop"
+        android:title="Stop scan"
+        app:showAsAction="ifRoom|withText" />
+</menu>
